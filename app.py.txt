@@ -1,0 +1,96 @@
+import streamlit as st
+import pandas as pd
+from datetime import datetime
+import plotly.express as px
+
+# Configuration de la page
+st.set_page_config(page_title="ROTAGAMING GNF", layout="wide")
+
+# Style CSS pour une interface propre
+st.markdown("""
+    <style>
+    .main { background-color: #f0f2f6; }
+    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; border-left: 5px solid #00FF00; }
+    </style>
+    """, unsafe_allow_html=True)
+
+st.title("🎮 ROTAGAMING : Gestion de Caisse (GNF)")
+
+# Fonction pour charger/sauvegarder les données
+def load_data():
+    try:
+        df = pd.read_csv('rotagaming_gnf.csv')
+        df['Date'] = pd.to_datetime(df['Date'])
+        return df
+    except FileNotFoundError:
+        return pd.DataFrame(columns=["Date", "Catégorie", "Détails", "Revenu", "Coût", "Bénéfice"])
+
+df = load_data()
+
+# --- BARRE LATÉRALE : SAISIE DES OPÉRATIONS ---
+with st.sidebar:
+    st.header("➕ Nouvelle Entrée")
+    date_op = st.date_input("Date", datetime.now())
+    cat = st.selectbox("Type de Service", ["Abonnement Salle", "Tournoi / Inscription", "Vente Accessoires", "Coaching / Formation", "Autre"])
+    details = st.text_input("Commentaire (ex: Client Diallo)")
+    
+    # Montants en GNF
+    rev = st.number_input("Revenu encaissé (GNF)", min_value=0, step=5000)
+    cout = st.number_input("Coût ou frais (GNF)", min_value=0, step=5000)
+    
+    if st.button("Enregistrer"):
+        benef = rev - cout
+        new_row = {
+            "Date": date_op,
+            "Catégorie": cat,
+            "Détails": details,
+            "Revenu": rev,
+            "Coût": cout,
+            "Bénéfice": benef
+        }
+        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+        df.to_csv('rotagaming_gnf.csv', index=False)
+        st.success("Transaction enregistrée !")
+        st.rerun()
+
+# --- TABLEAU DE BORD ---
+# Calculs totaux
+total_rev = df["Revenu"].sum()
+total_cout = df["Coût"].sum()
+total_benef = df["Bénéfice"].sum()
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric("Chiffre d'Affaires", f"{total_rev:,.0f} GNF".replace(",", " "))
+with col2:
+    st.metric("Total Dépenses", f"{total_cout:,.0f} GNF".replace(",", " "), delta_color="inverse")
+with col3:
+    st.metric("Bénéfice Net", f"{total_benef:,.0f} GNF".replace(",", " "))
+
+st.markdown("---")
+
+# --- ANALYSE ---
+c1, c2 = st.columns(2)
+
+with c1:
+    st.subheader("Répartition par Catégorie")
+    if not df.empty:
+        fig = px.pie(df, values='Revenu', names='Catégorie', hole=0.3)
+        st.plotly_chart(fig, use_container_width=True)
+
+with c2:
+    st.subheader("Historique des Gains")
+    if not df.empty:
+        # Groupement par date pour le graphique
+        df_hist = df.groupby('Date')['Bénéfice'].sum().reset_index()
+        st.line_chart(df_hist.set_index('Date'))
+
+# --- TABLEAU DES TRANSACTIONS ---
+st.subheader("📜 Journal des transactions")
+st.dataframe(df.sort_values(by="Date", ascending=False), use_container_width=True)
+
+# Bouton pour réinitialiser (Optionnel - à utiliser avec prudence)
+if st.sidebar.button("Vider l'historique"):
+    pd.DataFrame(columns=["Date", "Catégorie", "Détails", "Revenu", "Coût", "Bénéfice"]).to_csv('rotagaming_gnf.csv', index=False)
+    st.rerun()
