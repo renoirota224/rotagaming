@@ -1,4 +1,4 @@
-mport streamlit as st
+import streamlit as st
 import pandas as pd
 from datetime import datetime
 import plotly.express as px
@@ -85,3 +85,4 @@ with right:
 # --- JOURNAL PRO ---
 st.subheader("📝 Historique Professionnel")
 st.dataframe(df.sort_values(by="Date", ascending=False), use_container_width=True)
+
