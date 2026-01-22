@@ -73,7 +73,7 @@ elif menu == "🔥 Nouvelle Vente":
     with st.form("v_form"):
         col1, col2 = st.columns(2)
         d = col1.date_input("Date", datetime.now())
-        p = col1.selectbox("Prestation", ["Installation PES", "Jeu PC", "Mise à jour", "Réparation"])
+        p = col1.selectbox("Prestation", ["Installation jeu", "Jeu PC", "Mise à jour", "Réparation","benefice manette"])
         c = col1.text_input("Client")
         j = col2.text_input("Jeu / Article")
         m = col2.number_input("Montant (GNF)", min_value=0, step=5000)
@@ -105,3 +105,4 @@ elif menu == "📑 Gestion des Dettes":
         st.success("Aucune dette en cours !")
     else:
         st.dataframe(dettes_only, use_container_width=True)
+
