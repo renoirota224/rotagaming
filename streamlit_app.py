@@ -6,7 +6,7 @@ import io
 # Configuration Pro
 st.set_page_config(page_title="ROTAGAMING GNF - Pro", layout="wide")
 
-# Style personnalisé
+# Style personnalisé sombre
 st.markdown("""
     <style>
     .main { background-color: #0e1117; color: white; }
@@ -15,7 +15,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🎮 ROTAGAMING : Gestion & Export")
+st.title("🎮 ROTAGAMING : Expert & Gestion")
 
 # --- CHARGEMENT DES DONNÉES ---
 def load_data(file, columns):
@@ -47,23 +47,23 @@ if menu == "Tableau de Bord":
 
     st.markdown("---")
     
-    # BOUTON D'EXPORT EXCEL
+    # BOUTON D'EXPORT EXCEL (Vérifie bien que xlsxwriter est dans ton requirements.txt)
     st.subheader("📊 Exporter le Bilan")
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-        df_ventes.to_excel(writer, sheet_name='Ventes', index=False)
-        df_depenses.to_excel(writer, sheet_name='Depenses', index=False)
-        # Création d'un petit résumé
-        resume = pd.DataFrame({"Indicateur": ["Total Revenu", "Total Dépenses", "Bénéfice Net"], 
-                               "Valeur (GNF)": [total_revenu, total_depense, benefice_reel]})
-        resume.to_excel(writer, sheet_name='Resume', index=False)
-    
-    st.download_button(
-        label="📥 Télécharger le bilan complet (Excel)",
-        data=buffer,
-        file_name=f"Bilan_ROTAGAMING_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
-        mime="application/vnd.ms-excel"
-    )
+    try:
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            df_ventes.to_excel(writer, sheet_name='Ventes', index=False)
+            df_depenses.to_excel(writer, sheet_name='Depenses', index=False)
+        
+        st.download_button(
+            label="📥 Télécharger le bilan Excel",
+            data=buffer,
+            file_name=f"Bilan_ROTAGAMING_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
+            mime="application/vnd.ms-excel",
+            key="export_btn"
+        )
+    except:
+        st.warning("Pour télécharger en Excel, ajoute 'xlsxwriter' dans ton fichier requirements.txt sur GitHub.")
 
     st.markdown("---")
     c1, c2 = st.columns(2)
@@ -76,32 +76,39 @@ if menu == "Tableau de Bord":
 
 # --- OPTION 2 : AJOUTER UNE VENTE ---
 elif menu == "Ajouter une Vente":
-    st.subheader("🛒 Nouvelle Vente")
+    st.subheader("🛒 Nouvelle Vente de Service")
     with st.form("form_vente"):
         date_v = st.date_input("Date", datetime.now())
-        presta = st.selectbox("Type", ["Installation PES", "Installation Autre Jeu", "Abonnement", "Vente Matériel"])
+        presta = st.selectbox("Type", ["Installation Jeu Solo", "Installation Jeu Online", "Abonnement", "Vente Matériel"])
         jeu = st.text_input("Jeu / Article")
         client = st.text_input("Client")
-        prix = st.number_input("Prix (GNF)", min_value=0, step=5000)
-        if st.form_submit_button("Enregistrer"):
+        prix = st.number_input("Prix reçu (GNF)", min_value=0, step=5000)
+        
+        # Le bouton ici a un nom unique pour éviter l'erreur
+        submit_v = st.form_submit_button("Enregistrer la Vente")
+        if submit_v:
             new_v = {"Date": date_v, "Prestation": presta, "Jeu": jeu, "Client": client, "Revenu": prix}
             df_ventes = pd.concat([df_ventes, pd.DataFrame([new_v])], ignore_index=True)
             df_ventes.to_csv('database_ventes.csv', index=False)
             st.success("Vente enregistrée !")
+            st.rerun()
 
 # --- OPTION 3 : AJOUTER UNE DÉPENSE ---
 elif menu == "Ajouter une Dépense":
-    st.subheader("📉 Nouvelle Charge")
+    st.subheader("📉 Nouvelle Charge / Achat")
     with st.form("form_depense"):
         date_d = st.date_input("Date", datetime.now())
-        type_d = st.selectbox("Catégorie", ["Loyer", "Électricité", "Achat Matériel", "Internet", "Perte/Vol", "Autre"])
-        desc = st.text_input("Détails")
-        montant = st.number_input("Montant (GNF)", min_value=0, step=1000)
-
-if st.form_submit_button("Enregistrer"):
+        type_d = st.
+selectbox("Catégorie", ["Loyer", "Électricité", "Achat Matériel", "Internet", "Perte/Vol", "Autre"])
+        desc = st.text_input("Détails de la dépense")
+        montant = st.number_input("Montant payé (GNF)", min_value=0, step=1000)
+        
+        # Le bouton ici a un nom unique différent du premier
+        submit_d = st.form_submit_button("Enregistrer la Charge")
+        if submit_d:
             new_d = {"Date": date_d, "Type": type_d, "Description": desc, "Montant": montant}
             df_depenses = pd.concat([df_depenses, pd.DataFrame([new_d])], ignore_index=True)
             df_depenses.to_csv('database_depenses.csv', index=False)
             st.success("Dépense enregistrée !")
-
+            st.rerun()
 
