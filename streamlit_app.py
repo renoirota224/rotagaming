@@ -3,87 +3,121 @@ import pandas as pd
 from datetime import datetime
 import io
 import urllib.parse
+import plotly.express as px
 
-# 1. CONFIGURATION ET DESIGN GAMING
-st.set_page_config(page_title="ROTAGAMING - ULTIMATE GESTION", layout="wide")
+# 1. CONFIGURATION ÉLÉGANTE
+st.set_page_config(page_title="ROTAGAMING ULTIMATE", layout="wide")
 
 st.markdown("""
     <style>
     .stApp {
-        background: linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)), 
-        url("https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070");
+        background: linear-gradient(rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.8)), 
+        url("https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2070");
         background-size: cover;
     }
-    div[data-testid="stMetricValue"] { color: #00ff00; font-weight: bold; }
-    .stButton>button { width: 100%; background: linear-gradient(45deg, #00ff00, #008000); color: black; font-weight: bold; border: none; }
+    .metric-card { background: rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 15px; border-left: 5px solid #00ff00; }
+    div[data-testid="stMetricValue"] { color: #00ff00; font-family: 'Courier New'; }
+    .stButton>button { border-radius: 20px; background: #00ff00; color: black; transition: 0.3s; font-weight: bold; }
+    .stButton>button:hover { background: #00cc00; transform: scale(1.05); }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🎮 ROTAGAMING : Hub de Gestion & Marketing")
-
-# 2. CHARGEMENT SÉCURISÉ
-def load_data(file, columns):
+# 2. FONCTIONS DE GESTION DE DONNÉES
+def init_data(file, cols):
     try:
         df = pd.read_csv(file)
-        for col in columns:
-            if col not in df.columns:
-                df[col] = "Payé" if col == "Statut" else 0
+        for c in cols: 
+            if c not in df.columns: df[c] = 0
         return df
-    except FileNotFoundError:
-        return pd.DataFrame(columns=columns)
+    except: return pd.DataFrame(columns=cols)
 
-df_ventes = load_data('database_ventes.csv', ["Date", "Prestation", "Jeu", "Client", "Revenu", "Statut"])
-df_depenses = load_data('database_depenses.csv', ["Date", "Type", "Description", "Montant"])
+df_ventes = init_data('ventes_pro.csv', ["Date", "Client", "Service", "Jeu", "Montant", "Statut", "Phone"])
+df_stock = init_data('stock_pro.csv', ["Article", "Quantite", "Prix_Achat", "Seuil"])
+df_depenses = init_data('depenses_pro.csv', ["Date", "Categorie", "Note", "Montant"])
 
-# 3. NAVIGATION AMÉLIORÉE
-menu = st.sidebar.selectbox("🚀 MENU", ["Tableau de Bord", "🔥 Nouvelle Vente", "💸 Nouvelle Dépense", "📑 Gestion des Dettes", "📱 Marketing WhatsApp"])
+# 3. SIDEBAR NAVIGATION
+st.sidebar.title("🎮 ROTAGAMING HUB")
+page = st.sidebar.radio("Navigation", ["📊 Dashboard", "💰 Caisse", "📦 Stock & Magasin", "🕵️ Clients & Dettes", "📱 WhatsApp Marketing", "⚙️ Paramètres"])
 
-# --- PAGE TABLEAU DE BORD ---
-if menu == "Tableau de Bord":
-    df_ventes['Revenu'] = pd.to_numeric(df_ventes['Revenu'], errors='coerce').fillna(0)
-    df_depenses['Montant'] = pd.to_numeric(df_depenses['Montant'], errors='coerce').fillna(0)
+# --- PAGE 1: DASHBOARD ---
+if page == "📊 Dashboard":
+    st.header("Statistiques Globales")
     
-    total_rev = df_ventes[df_ventes['Statut'] == "Payé"]['Revenu'].sum()
-    total_dettes = df_ventes[df_ventes['Statut'] == "Dette"]['Revenu'].sum()
-    total_dep = df_depenses['Montant'].sum()
-    net = total_rev - total_dep
+    # Calculs rapides
+    df_ventes['Montant'] = pd.to_numeric(df_ventes['Montant'], errors='coerce').fillna(0)
+    rev_total = df_ventes[df_ventes['Statut'] == "Payé"]['Montant'].sum()
+    dette_total = df_ventes[df_ventes['Statut'] == "Dette"]['Montant'].sum()
+    dep_total = pd.to_numeric(df_depenses['Montant']).sum()
+    benef = rev_total - dep_total
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("ENCAISSÉ", f"{total_rev:,.0f} GNF")
-    c2.metric("DETTES", f"{total_dettes:,.0f} GNF", delta="À récupérer", delta_color="inverse")
-    c3.metric("CHARGES", f"{total_dep:,.0f} GNF", delta_color="inverse")
-    c4.metric("BÉNÉFICE NET", f"{net:,.0f} GNF")
+    with c1: st.metric("REVENU RÉEL", f"{rev_total:,.0f} GNF")
+    with c2: st.metric("EN ATTENTE (DETTES)", f"{dette_total:,.0f} GNF", delta_color="inverse")
+    with c3: st.metric("CHARGES", f"{dep_total:,.0f} GNF", delta_color="inverse")
+    with c4: st.metric("NET DANS LA POCHE", f"{benef:,.0f} GNF")
 
-    st.markdown("---")
-    st.subheader("📝 Dernières Opérations")
-    st.dataframe(df_ventes.tail(5), use_container_width=True)
+    # Graphique de Performance
+    if not df_ventes.empty:
+        fig = px.line(df_ventes, x='Date', y='Montant', title="Évolution des Ventes", color_discrete_sequence=['#00ff00'])
+        st.plotly_chart(fig, use_container_width=True)
 
-# --- PAGE WHATSAPP (PROSPECTS) ---
-elif menu == "📱 Marketing WhatsApp":
-    st.subheader("📢 Envoyer un message au client")
-    colw1, colw2 = st.columns(2)
+# --- PAGE 2: CAISSE ---
+elif page == "💰 Caisse":
+    tab1, tab2 = st.tabs(["🛒 Nouvelle Vente", "💸 Sortie d'argent"])
     
-    with colw1:
-        nom_c = st.text_input("Nom du prospect / client")
-        num_c = st.text_input("Numéro WhatsApp (ex: 224622...)", placeholder="224XXXXXXXXX")
-    
-    with colw2:
-        msg_type = st.selectbox("Type de message", ["Confirmation Installation", "Relance Dette", "Promo Nouveau Jeu"])
-        
-        if msg_type == "Confirmation Installation":
-            base_msg = f"Bonjour {nom_c}, votre jeu est installé et prêt chez ROTAGAMING ! Merci de votre confiance. 🎮"
-        elif msg_type == "Relance Dette":
-            base_msg = f"Bonjour {nom_c}, petit rappel concernant votre reste à payer chez ROTAGAMING. Merci de passer nous voir ! 😊"
-        else:
-            base_msg = f"Salut {nom_c} ! On vient de recevoir de nouveaux jeux et patchs chez ROTAGAMING. Passe vite voir ça ! 🔥"
-        
-        message = st.text_area("Modifier le message :", base_msg)
+    with tab1:
+        with st.form("vente"):
+            c1, c2 = st.columns(2)
+            date = c1.date_input("Date", datetime.now())
+            client = c1.text_input("Nom Client")
+            phone = c1.text_input("Numéro Client (WhatsApp)")
+            serv = c2.selectbox("Prestation", ["PES 26 Installation", "Patch Update", "Full Pack PC", "Réparation Manette"])
+            jeu = c2.text_input("Nom du Jeu / Objet")
+            prix = c2.number_input("Prix (GNF)", step=5000)
+            statut = c2.radio("Statut", ["Payé", "Dette"])
+            if st.form_submit_button("Enregistrer la Transaction"):
+                new_v = pd.DataFrame([{"Date":str(date), "Client":client, "Service":serv, "Jeu":jeu, "Montant":prix, "Statut":statut, "Phone":phone}])
+                df_ventes = pd.concat([df_ventes, new_v], ignore_index=True)
+                df_ventes.to_csv('ventes_pro.csv', index=False)
+                st.success("Transaction validée !")
 
-    if st.button("📲 Envoyer sur WhatsApp"):
-        if num_c:
-            # Encodage du message pour l'URL
-            msg_encoded = urllib.parse.quote(message)
-            whatsapp_url = f"https://wa.me/{num_c}?text={msg_encoded}"
-            st.markdown(f'<a href="{whatsapp_url}" target="_blank" style="text-decoration:none;"><button style="width:100%; background-color:#25D366; color:white; border-radius:10px; padding:10px; border:none; font-weight:bold;">CLIQUER ICI POUR OUVRIR WHATSAPP</button></a>', unsafe_allow_html=True)
-        else:
-            st.error("Veuillez saisir un numéro de téléphone.")
+    with tab2:
+        with st.form("depense"):
+            d_date = st.date_input("Date", datetime.now())
+            cat = st.selectbox("Catégorie", ["Loyer", "EDG", "Internet", "Achat Stock", "Transport"])
+            note = st.text_input("Détails")
+            montant = st.number_input("Montant (GNF)", step=1000)
+            if st.form_submit_button("Valider la Dépense"):
+                new_d = pd.DataFrame([{"Date":str(d_date), "Categorie":cat, "Note":note, "Montant":montant}])
+                df_depenses = pd.concat([df_depenses, new_d], ignore_index=True)
+                df_depenses.to_csv('depenses_pro.csv', index=False)
+                st.warning("Dépense enregistrée.")
+
+# --- PAGE 3: STOCK ---
+elif page == "📦 Stock & Magasin":
+    st.subheader("Gestion des Articles")
+    with st.expander("➕ Ajouter un article en stock"):
+        with st.form("stock"):
+            art = st.text_input("Nom de l'article (ex: Manette PS4)")
+            qte = st.number_input("Quantité", min_value=1)
+            p_a = st.number_input("Prix d'achat Unitaire", min_value=0)
+            seuil = st.number_input("Alerte Stock Bas (Seuil)", min_value=1)
+            if st.form_submit_button("Ajouter au Magasin"):
+                new_s = pd.DataFrame([{"Article":art, "Quantite":qte, "Prix_Achat":p_a, "Seuil":seuil}])
+                df_stock = pd.concat([df_stock, new_s], ignore_index=True)
+                df_stock.to_csv('stock_pro.csv', index=False)
+    
+    st.table(df_stock)
+
+# --- PAGE 5: WHATSAPP ---
+elif page == "📱 WhatsApp Marketing":
+    st.subheader("Relance & Prospect")
+    target = st.selectbox("Client à contacter", df_ventes['Client'].unique())
+    client_info = df_ventes[df_ventes['Client'] == target].iloc[-1]
+    
+    msg = st.text_area("Message", f"Salut {target}, c'est ROTAGAMING ! Ton jeu est prêt. Passe au labo ! 🎮")
+    
+    if st.button("Envoyer via WhatsApp"):
+        phone = str(client_info['Phone'])
+        url = f"https://wa.me/{phone}?text={urllib.parse.quote(msg)}"
+        st.markdown(f"[CLIQUEZ ICI POUR ENVOYER LE MESSAGE]( {url} )")
