@@ -98,10 +98,10 @@ elif menu == "Ajouter une Dépense":
         desc = st.text_input("Détails")
         montant = st.number_input("Montant (GNF)", min_value=0, step=1000)
 
-> Mes fichiers:
 if st.form_submit_button("Enregistrer"):
             new_d = {"Date": date_d, "Type": type_d, "Description": desc, "Montant": montant}
             df_depenses = pd.concat([df_depenses, pd.DataFrame([new_d])], ignore_index=True)
             df_depenses.to_csv('database_depenses.csv', index=False)
             st.success("Dépense enregistrée !")
+
 
