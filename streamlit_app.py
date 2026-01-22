@@ -88,7 +88,7 @@ elif menu == "🔥 Nouvelle Vente":
 elif menu == "💸 Nouvelle Dépense":
     with st.form("d_form"):
         d_d = st.date_input("Date", datetime.now())
-        t_d = st.selectbox("Type", ["Loyer", "EDG", "Internet", "Matériel", "Autre"])
+        t_d = st.selectbox("Type", ["Loyer", "MARKETING PUB", "Internet", "Matériel", "Autre"])
         desc = st.text_input("Détails")
         mont = st.number_input("Montant (GNF)", min_value=0, step=1000)
         
@@ -105,4 +105,5 @@ elif menu == "📑 Gestion des Dettes":
         st.success("Aucune dette en cours !")
     else:
         st.dataframe(dettes_only, use_container_width=True)
+
 
