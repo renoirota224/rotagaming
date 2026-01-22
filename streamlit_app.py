@@ -98,8 +98,7 @@ elif menu == "Ajouter une Dépense":
     st.subheader("📉 Nouvelle Charge / Achat")
     with st.form("form_depense"):
         date_d = st.date_input("Date", datetime.now())
-        type_d = st.
-selectbox("Catégorie", ["Loyer", "Électricité", "Achat Matériel", "Internet", "Perte/Vol", "Autre"])
+        type_d = st.selectbox("Catégorie", ["Loyer", "Électricité", "Achat Matériel", "Internet", "Perte/Vol", "Autre"])
         desc = st.text_input("Détails de la dépense")
         montant = st.number_input("Montant payé (GNF)", min_value=0, step=1000)
         
@@ -111,5 +110,6 @@ selectbox("Catégorie", ["Loyer", "Électricité", "Achat Matériel", "Internet"
             df_depenses.to_csv('database_depenses.csv', index=False)
             st.success("Dépense enregistrée !")
             st.rerun()
+
 
 
