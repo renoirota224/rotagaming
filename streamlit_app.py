@@ -15,7 +15,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🎮 ROTAGAMING : Expert & Gestion")
+st.title("🎮 ROTAGAMING :  Gestion")
 
 # --- CHARGEMENT DES DONNÉES ---
 def load_data(file, columns):
@@ -111,4 +111,5 @@ selectbox("Catégorie", ["Loyer", "Électricité", "Achat Matériel", "Internet"
             df_depenses.to_csv('database_depenses.csv', index=False)
             st.success("Dépense enregistrée !")
             st.rerun()
+
 
