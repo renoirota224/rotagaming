@@ -1,4 +1,3 @@
-> Mes fichiers:
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -93,7 +92,6 @@ elif menu == "💸 Nouvelle Dépense":
         desc = st.text_input("Détails")
         mont = st.number_input("Montant (GNF)", min_value=0, step=1000)
 
-> Mes fichiers:
 if st.form_submit_button("ENREGISTRER CHARGE"):
             new_d = pd.DataFrame([{"Date": d_d, "Type": t_d, "Description": desc, "Montant": mont}])
             df_depenses = pd.concat([df_depenses, new_d], ignore_index=True)
@@ -107,3 +105,4 @@ elif menu == "📑 Gestion des Dettes":
         st.success("Aucune dette en cours !")
     else:
         st.dataframe(dettes_only, use_container_width=True)
+
