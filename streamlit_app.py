@@ -4,9 +4,9 @@ from datetime import datetime
 import plotly.express as px
 
 # Configuration Pro
-st.set_page_config(page_title="ROTAGAMING GNF - Pro", layout="wide")
+st.set_page_config(page_title="ROTAGAMING GNF - Business", layout="wide")
 
-# Style personnalisé
+# Style sombre "Gaming"
 st.markdown("""
     <style>
     .main { background-color: #0e1117; color: white; }
@@ -15,74 +15,73 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🎮 ROTAGAMING : Expert Installation Jeux")
+st.title("🎮 ROTAGAMING : Expert & Gestion")
 
-# Chargement sécurisé des données
-def load_data():
+# --- CHARGEMENT DES DONNÉES ---
+def load_data(file, columns):
     try:
-        df = pd.read_csv('database_gaming.csv')
+        df = pd.read_csv(file)
         df['Date'] = pd.to_datetime(df['Date'])
         return df
     except FileNotFoundError:
-        return pd.DataFrame(columns=["Date", "Prestation", "Jeu", "Client", "Revenu", "Depense", "Profit"])
+        return pd.DataFrame(columns=columns)
 
-df = load_data()
+df_ventes = load_data('database_ventes.csv', ["Date", "Prestation", "Jeu", "Client", "Revenu"])
+df_depenses = load_data('database_depenses.csv', ["Date", "Type", "Description", "Montant"])
 
-# --- ESPACE SAISIE (LATÉRAL) ---
-with st.sidebar:
-    st.header("🛒 Enregistrer une Vente")
-    date_v = st.date_input("Date", datetime.now())
-    presta = st.selectbox("Type de Service", 
-                          ["Installation Jeu Solo", "Installation Jeu Online", "Pack Complet (Setup)", "Mise à jour / Patch", "Vente Accessoire"])
-    jeu = st.text_input("Nom du Jeu / Article")
-    client = st.text_input("Nom du Client")
-    
-    col_a, col_b = st.columns(2)
-    with col_a:
-        rev = st.number_input("Prix (GNF)", min_value=0, step=5000)
-    with col_b:
-        dep = st.number_input("Coût (GNF)", min_value=0, step=1000) # Ex: Achat de clé, électricité, disque
-    
-    if st.button("Valider la Transaction"):
-        new_entry = {
-            "Date": date_v, "Prestation": presta, "Jeu": jeu, 
-            "Client": client, "Revenu": rev, "Depense": dep, "Profit": rev - dep
-        }
-        df = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
-        df.to_csv('database_gaming.csv', index=False)
-        st.success("Enregistré avec succès !")
-        st.rerun()
+# --- NAVIGATION ---
+menu = st.sidebar.selectbox("Menu Principal", ["Tableau de Bord", "Ajouter une Vente", "Ajouter une Dépense"])
 
-# --- TABLEAU DE BORD FINANCIER ---
-c1, c2, c3 = st.columns(3)
-with c1:
-    st.metric("CHIFFRE D'AFFAIRES", f"{df['Revenu'].sum():,.0f} GNF".replace(",", " "))
-with c2:
-    st.metric("DÉPENSES (COÛTS)", f"{df['Depense'].sum():,.0f} GNF".replace(",", " "), delta_color="inverse")
-with c3:
-    total_profit = df['Profit'].sum()
-    st.metric("BÉNÉFICE NET", f"{total_profit:,.0f} GNF".replace(",", " "))
+# --- OPTION 1 : TABLEAU DE BORD ---
+if menu == "Tableau de Bord":
+    total_revenu = df_ventes['Revenu'].sum()
+    total_depense = df_depenses['Montant'].sum()
+    benefice_reel = total_revenu - total_depense
 
-st.markdown("---")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("TOTAL ENCAISSÉ", f"{total_revenu:,.0f} GNF".replace(",", " "))
+    with col2:
+        st.metric("TOTAL DÉPENSES", f"{total_depense:,.0f} GNF".replace(",", " "), delta_color="inverse")
+    with col3:
+        st.metric("BÉNÉFICE NET", f"{benefice_reel:,.0f} GNF".replace(",", " "))
 
-# --- ANALYSE ET GRAPHIQUES ---
-left, right = st.columns(2)
+    st.markdown("---")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.subheader("Journal des Ventes")
+        st.dataframe(df_ventes.sort_values(by="Date", ascending=False), use_container_width=True)
+    with c2:
+        st.subheader("Journal des Dépenses")
+        st.dataframe(df_depenses.sort_values(by="Date", ascending=False), use_container_width=True)
 
-with left:
-    st.subheader("📦 Revenus par Prestation")
-    if not df.empty:
-        fig_pie = px.sunburst(df, path=['Prestation', 'Jeu'], values='Revenu', color='Profit',
-                              color_continuous_scale='RdYlGn')
-        st.plotly_chart(fig_pie, use_container_width=True)
+# --- OPTION 2 : AJOUTER UNE VENTE ---
+elif menu == "Ajouter une Vente":
+    st.subheader("🛒 Enregistrer un nouveau revenu")
+    with st.form("form_vente"):
+        date_v = st.date_input("Date", datetime.now())
+        presta = st.selectbox("Type de Service", ["Installation Jeu Solo", "Installation Jeu Online", "Abonnement", "Vente Matériel"])
+        jeu = st.text_input("Nom du Jeu / Article")
+        client = st.text_input("Nom du Client")
+        prix = st.number_input("Somme reçue (GNF)", min_value=0, step=5000)
+        
+        if st.form_submit_button("Valider la Vente"):
+            new_v = {"Date": date_v, "Prestation": presta, "Jeu": jeu, "Client": client, "Revenu": prix}
+            df_ventes = pd.concat([df_ventes, pd.DataFrame([new_v])], ignore_index=True)
+            df_ventes.to_csv('database_ventes.csv', index=False)
+            st.success("Vente enregistrée !")
 
-with right:
-    st.subheader("📈 Évolution des Profits")
-    if not df.empty:
-        df_daily = df.groupby('Date')['Profit'].sum().reset_index()
-        fig_line = px.line(df_daily, x='Date', y='Profit', markers=True)
-        st.plotly_chart(fig_line, use_container_width=True)
-
-# --- JOURNAL PRO ---
-st.subheader("📝 Historique Professionnel")
-st.dataframe(df.sort_values(by="Date", ascending=False), use_container_width=True)
-
+# --- OPTION 3 : AJOUTER UNE DÉPENSE ---
+elif menu == "Ajouter une Dépense":
+    st.subheader("📉 Enregistrer une charge / achat")
+    with st.form("form_depense"):
+        date_d = st.date_input("Date", datetime.now())
+        type_d = st.selectbox("Type de dépense", ["Loyer", "Électricité", "Achat Matériel", "Internet", "Transport", "Autre"])
+        desc = st.text_input("Détails (ex: Facture EDG, Achat Clé USB)")
+        montant = st.number_input("Montant payé (GNF)", min_value=0, step=1000)
+        
+        if st.form_submit_button("Enregistrer la Dépense"):
+            new_d = {"Date": date_d, "Type": type_d, "Description": desc, "Montant": montant}
+            df_depenses = pd.concat([df_depenses, pd.DataFrame([new_d])], ignore_index=True)
+            df_depenses.to_csv('database_depenses.csv', index=False)
+            st.success("Dépense notée !")
