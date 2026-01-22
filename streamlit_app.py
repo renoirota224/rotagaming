@@ -1,97 +1,87 @@
-import streamlit as st
+mport streamlit as st
 import pandas as pd
 from datetime import datetime
 import plotly.express as px
 
-# Configuration de la page
-st.set_page_config(page_title="ROTAGAMING GNF", layout="wide")
+# Configuration Pro
+st.set_page_config(page_title="ROTAGAMING GNF - Pro", layout="wide")
 
-# Style CSS pour une interface propre
+# Style personnalisé
 st.markdown("""
     <style>
-    .main { background-color: #f0f2f6; }
-    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; border-left: 5px solid #00FF00; }
+    .main { background-color: #0e1117; color: white; }
+    div[data-testid="stMetricValue"] { color: #00ff00; }
+    .stButton>button { width: 100%; border-radius: 5px; background-color: #00ff00; color: black; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🎮 ROTAGAMING : Gestion de Caisse (GNF)")
+st.title("🎮 ROTAGAMING : Expert Installation Jeux")
 
-# Fonction pour charger/sauvegarder les données
+# Chargement sécurisé des données
 def load_data():
     try:
-        df = pd.read_csv('rotagaming_gnf.csv')
+        df = pd.read_csv('database_gaming.csv')
         df['Date'] = pd.to_datetime(df['Date'])
         return df
     except FileNotFoundError:
-        return pd.DataFrame(columns=["Date", "Catégorie", "Détails", "Revenu", "Coût", "Bénéfice"])
+        return pd.DataFrame(columns=["Date", "Prestation", "Jeu", "Client", "Revenu", "Depense", "Profit"])
 
 df = load_data()
 
-# --- BARRE LATÉRALE : SAISIE DES OPÉRATIONS ---
+# --- ESPACE SAISIE (LATÉRAL) ---
 with st.sidebar:
-    st.header("➕ Nouvelle Entrée")
-    date_op = st.date_input("Date", datetime.now())
-    cat = st.selectbox("Type de Service", ["Abonnement Salle", "Tournoi / Inscription", "Vente Accessoires", "Coaching / Formation", "Autre"])
-    details = st.text_input("Commentaire (ex: Client Diallo)")
+    st.header("🛒 Enregistrer une Vente")
+    date_v = st.date_input("Date", datetime.now())
+    presta = st.selectbox("Type de Service", 
+                          ["Installation Jeu Solo", "Installation Jeu Online", "Pack Complet (Setup)", "Mise à jour / Patch", "Vente Accessoire"])
+    jeu = st.text_input("Nom du Jeu / Article")
+    client = st.text_input("Nom du Client")
     
-    # Montants en GNF
-    rev = st.number_input("Revenu encaissé (GNF)", min_value=0, step=5000)
-    cout = st.number_input("Coût ou frais (GNF)", min_value=0, step=5000)
+    col_a, col_b = st.columns(2)
+    with col_a:
+        rev = st.number_input("Prix (GNF)", min_value=0, step=5000)
+    with col_b:
+        dep = st.number_input("Coût (GNF)", min_value=0, step=1000) # Ex: Achat de clé, électricité, disque
     
-    if st.button("Enregistrer"):
-        benef = rev - cout
-        new_row = {
-            "Date": date_op,
-            "Catégorie": cat,
-            "Détails": details,
-            "Revenu": rev,
-            "Coût": cout,
-            "Bénéfice": benef
+    if st.button("Valider la Transaction"):
+        new_entry = {
+            "Date": date_v, "Prestation": presta, "Jeu": jeu, 
+            "Client": client, "Revenu": rev, "Depense": dep, "Profit": rev - dep
         }
-        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-        df.to_csv('rotagaming_gnf.csv', index=False)
-        st.success("Transaction enregistrée !")
+        df = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
+        df.to_csv('database_gaming.csv', index=False)
+        st.success("Enregistré avec succès !")
         st.rerun()
 
-# --- TABLEAU DE BORD ---
-# Calculs totaux
-total_rev = df["Revenu"].sum()
-total_cout = df["Coût"].sum()
-total_benef = df["Bénéfice"].sum()
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.metric("Chiffre d'Affaires", f"{total_rev:,.0f} GNF".replace(",", " "))
-with col2:
-    st.metric("Total Dépenses", f"{total_cout:,.0f} GNF".replace(",", " "), delta_color="inverse")
-with col3:
-    st.metric("Bénéfice Net", f"{total_benef:,.0f} GNF".replace(",", " "))
+# --- TABLEAU DE BORD FINANCIER ---
+c1, c2, c3 = st.columns(3)
+with c1:
+    st.metric("CHIFFRE D'AFFAIRES", f"{df['Revenu'].sum():,.0f} GNF".replace(",", " "))
+with c2:
+    st.metric("DÉPENSES (COÛTS)", f"{df['Depense'].sum():,.0f} GNF".replace(",", " "), delta_color="inverse")
+with c3:
+    total_profit = df['Profit'].sum()
+    st.metric("BÉNÉFICE NET", f"{total_profit:,.0f} GNF".replace(",", " "))
 
 st.markdown("---")
 
-# --- ANALYSE ---
-c1, c2 = st.columns(2)
+# --- ANALYSE ET GRAPHIQUES ---
+left, right = st.columns(2)
 
-with c1:
-    st.subheader("Répartition par Catégorie")
+with left:
+    st.subheader("📦 Revenus par Prestation")
     if not df.empty:
-        fig = px.pie(df, values='Revenu', names='Catégorie', hole=0.3)
-        st.plotly_chart(fig, use_container_width=True)
+        fig_pie = px.sunburst(df, path=['Prestation', 'Jeu'], values='Revenu', color='Profit',
+                              color_continuous_scale='RdYlGn')
+        st.plotly_chart(fig_pie, use_container_width=True)
 
-with c2:
-    st.subheader("Historique des Gains")
+with right:
+    st.subheader("📈 Évolution des Profits")
     if not df.empty:
-        # Groupement par date pour le graphique
-        df_hist = df.groupby('Date')['Bénéfice'].sum().reset_index()
-        st.line_chart(df_hist.set_index('Date'))
+        df_daily = df.groupby('Date')['Profit'].sum().reset_index()
+        fig_line = px.line(df_daily, x='Date', y='Profit', markers=True)
+        st.plotly_chart(fig_line, use_container_width=True)
 
-# --- TABLEAU DES TRANSACTIONS ---
-st.subheader("📜 Journal des transactions")
+# --- JOURNAL PRO ---
+st.subheader("📝 Historique Professionnel")
 st.dataframe(df.sort_values(by="Date", ascending=False), use_container_width=True)
-
-# Bouton pour réinitialiser (Optionnel - à utiliser avec prudence)
-if st.sidebar.button("Vider l'historique"):
-    pd.DataFrame(columns=["Date", "Catégorie", "Détails", "Revenu", "Coût", "Bénéfice"]).to_csv('rotagaming_gnf.csv', index=False)
-
-    st.rerun()
