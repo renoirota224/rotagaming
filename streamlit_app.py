@@ -92,4 +92,40 @@ elif menu == "🔥 Nouvelle Vente":
         col_v1, col_v2 = st.columns(2)
         with col_v1:
             d = st.date_input("Date", datetime.now())
-            p = st.
+            p = st.selectbox("Prestation", ["Installation PES", "Patch / Mise à jour", "Jeu Complet PC", "Abonnement Salle", "Réparation"])
+            c = st.text_input("Nom du Client")
+        with col_v2:
+            j = st.text_input("Jeu / Article")
+            m = st.number_input("Montant (GNF)", min_value=0, step=5000)
+            s = st.radio("Statut du paiement", ["Payé", "Dette"])
+        
+        if st.form_submit_button("VALIDER L'OPÉRATION"):
+            new_v = {"Date": d, "Prestation": p, "Jeu": j, "Client": c, "Revenu": m, "Statut": s}
+            df_ventes = pd.concat([df_ventes, pd.DataFrame([new_v])], ignore_index=True)
+            df_ventes.to_csv('database_ventes.csv', index=False)
+            st.success(f"Opération enregistrée pour {c} !")
+
+# --- 3. NOUVELLE DÉPENSE ---
+elif menu == "💸 Nouvelle Dépense":
+    st.subheader("📉 Enregistrer un frais")
+    with st.form("dep_form"):
+        d_d = st.date_input("Date", datetime.now())
+        t_d = st.selectbox("Catégorie", ["Électricité / EDG", "Loyer", "Internet / Data", "Achat Matériel", "Transport", "Autre"])
+        desc = st.text_input("Description (ex: Facture Janvier)")
+        mont = st.number_input("Montant payé (GNF)", min_value=0, step=1000)
+        
+        if st.form_submit_button("ENREGISTRER LA DÉPENSE"):
+            new_d = {"Date": d_d, "Type": t_d, "Description": desc, "Montant": mont}
+            df_depenses = pd.concat([df_depenses, pd.DataFrame([new_d])], ignore_index=True)
+            df_depenses.to_csv('database_depenses.csv', index=False)
+            st.warning("Dépense comptabilisée.")
+
+# --- 4. GESTION DES DETTES ---
+elif menu == "📑 Gestion des Dettes":
+    st.subheader("🕵️ Suivi des impayés")
+    dettes_df = df_ventes[df_ventes['Statut'] == "Dette"]
+    if dettes_df.empty:
+        st.success("Félicitations ! Aucun client n'a de dette.")
+    else:
+        st.dataframe(dettes_df, use_container_width=True)
+        st.info("Lorsqu'un client paie, supprimez sa dette et ré-enregistrez la vente en 'Payé'.")
