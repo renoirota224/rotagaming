@@ -1,4 +1,3 @@
-> Mes fichiers:
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -105,3 +104,4 @@ if st.form_submit_button("Enregistrer"):
             df_depenses = pd.concat([df_depenses, pd.DataFrame([new_d])], ignore_index=True)
             df_depenses.to_csv('database_depenses.csv', index=False)
             st.success("Dépense enregistrée !")
+
