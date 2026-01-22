@@ -91,7 +91,8 @@ elif menu == "Ajouter une Vente":
         nom_client = st.text_input("Client")
         prix_v = st.number_input("Montant Reçu (GNF)", min_value=0, step=5000)
         
-        if st.form_submit_button("Valider la Vente"):n_v = {"Date": d_v, "Prestation": type_v, "Jeu": nom_jeu, "Client": nom_client, "Revenu": prix_v}
+        if st.form_submit_button("Valider la Vente"):
+            n_v = {"Date": d_v, "Prestation": type_v, "Jeu": nom_jeu, "Client": nom_client, "Revenu": prix_v}
             df_ventes = pd.concat([df_ventes, pd.DataFrame([n_v])], ignore_index=True)
             df_ventes.to_csv('database_ventes.csv', index=False)
             st.success("Vente enregistrée !")
@@ -112,4 +113,5 @@ elif menu == "Ajouter une Dépense":
             df_depenses.to_csv('database_depenses.csv', index=False)
             st.success("Dépense enregistrée !")
             st.rerun()
+
 
