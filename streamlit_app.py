@@ -1,12 +1,13 @@
+> Mes fichiers:
 import streamlit as st
 import pandas as pd
 from datetime import datetime
 import io
 
-# Configuration Pro
+# Configuration
 st.set_page_config(page_title="ROTAGAMING GNF - Pro", layout="wide")
 
-# Style personnalisé sombre
+# Style Gaming
 st.markdown("""
     <style>
     .main { background-color: #0e1117; color: white; }
@@ -15,7 +16,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🎮 ROTAGAMING :  Gestion")
+st.title("🎮 ROTAGAMING : Expert & Gestion")
 
 # --- CHARGEMENT DES DONNÉES ---
 def load_data(file, columns):
@@ -29,41 +30,48 @@ df_ventes = load_data('database_ventes.csv', ["Date", "Prestation", "Jeu", "Clie
 df_depenses = load_data('database_depenses.csv', ["Date", "Type", "Description", "Montant"])
 
 # --- NAVIGATION ---
-menu = st.sidebar.selectbox("Menu Principal", ["Tableau de Bord", "Ajouter une Vente", "Ajouter une Dépense"])
+menu = st.sidebar.selectbox("Navigation", ["Tableau de Bord", "Ajouter une Vente", "Ajouter une Dépense"])
 
-# --- OPTION 1 : TABLEAU DE BORD & EXPORT ---
+# --- 1. TABLEAU DE BORD ---
 if menu == "Tableau de Bord":
-    total_revenu = pd.to_numeric(df_ventes['Revenu']).sum()
-    total_depense = pd.to_numeric(df_depenses['Montant']).sum()
-    benefice_reel = total_revenu - total_depense
+    df_ventes['Revenu'] = pd.to_numeric(df_ventes['Revenu'], errors='coerce').fillna(0)
+    df_depenses['Montant'] = pd.to_numeric(df_depenses['Montant'], errors='coerce').fillna(0)
+    
+    total_rev = df_ventes['Revenu'].sum()
+    total_dep = df_depenses['Montant'].sum()
+    net = total_rev - total_dep
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("TOTAL ENCAISSÉ", f"{total_revenu:,.0f} GNF".replace(",", " "))
+        st.metric("TOTAL REVENUS", f"{total_rev:,.0f} GNF".replace(",", " "))
     with col2:
-        st.metric("TOTAL DÉPENSES", f"{total_depense:,.0f} GNF".replace(",", " "), delta_color="inverse")
+        st.metric("TOTAL DÉPENSES", f"{total_dep:,.0f} GNF".replace(",", " "), delta_color="inverse")
     with col3:
-        st.metric("BÉNÉFICE NET", f"{benefice_reel:,.0f} GNF".replace(",", " "))
+        st.metric("BÉNÉFICE NET", f"{net:,.0f} GNF".replace(",", " "))
 
     st.markdown("---")
     
-    # BOUTON D'EXPORT EXCEL (Vérifie bien que xlsxwriter est dans ton requirements.txt)
-    st.subheader("📊 Exporter le Bilan")
-    try:
-        buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            df_ventes.to_excel(writer, sheet_name='Ventes', index=False)
-            df_depenses.to_excel(writer, sheet_name='Depenses', index=False)
+    # SECTION SUPPRESSION
+    with st.expander("🗑️ Supprimer une erreur (Vente ou Dépense)"):
+        type_suppr = st.radio("Que voulez-vous supprimer ?", ["Une Vente", "Une Dépense"])
         
-        st.download_button(
-            label="📥 Télécharger le bilan Excel",
-            data=buffer,
-            file_name=f"Bilan_ROTAGAMING_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
-            mime="application/vnd.ms-excel",
-            key="export_btn"
-        )
-    except:
-        st.warning("Pour télécharger en Excel, ajoute 'xlsxwriter' dans ton fichier requirements.txt sur GitHub.")
+        if type_suppr == "Une Vente" and not df_ventes.empty:
+            vente_a_suppr = st.selectbox("Sélectionnez la vente à supprimer", df_ventes.index, format_func=lambda x: f"{df_ventes.iloc[x]['Date']} - {df_ventes.iloc[x]['Client']} ({df_ventes.iloc[x]['Revenu']} GNF)")
+            if st.button("Confirmer la suppression de la vente"):
+                df_ventes = df_ventes.drop(vente_a_suppr)
+                df_ventes.to_csv('database_ventes.csv', index=False)
+                st.success("Vente supprimée !")
+                st.rerun()
+        
+        elif type_suppr == "Une Dépense" and not df_depenses.empty:
+            dep_a_suppr = st.selectbox("Sélectionnez la dépense à supprimer", df_depenses.index, format_func=lambda x: f"{df_depenses.iloc[x]['Date']} - {df_depenses.iloc[x]['Description']} ({df_depenses.iloc[x]['Montant']} GNF)")
+            if st.button("Confirmer la suppression de la dépense"):
+                df_depenses = df_depenses.drop(dep_a_suppr)
+                df_depenses.to_csv('database_depenses.csv', index=False)
+                st.success("Dépense supprimée !")
+                st.rerun()
+        else:
+            st.info("Aucune donnée à supprimer pour le moment.")
 
     st.markdown("---")
     c1, c2 = st.columns(2)
@@ -74,42 +82,37 @@ if menu == "Tableau de Bord":
         st.subheader("Dernières Dépenses")
         st.dataframe(df_depenses.tail(10), use_container_width=True)
 
-# --- OPTION 2 : AJOUTER UNE VENTE ---
+# --- 2. AJOUTER UNE VENTE ---
 elif menu == "Ajouter une Vente":
-    st.subheader("🛒 Nouvelle Vente de Service")
-    with st.form("form_vente"):
-        date_v = st.date_input("Date", datetime.now())
-        presta = st.selectbox("Type", ["Installation Jeu Solo", "Installation Jeu Online", "Abonnement", "Vente Matériel"])
-        jeu = st.text_input("Jeu / Article")
-        client = st.text_input("Client")
-        prix = st.number_input("Prix reçu (GNF)", min_value=0, step=5000)
+    st.subheader("🛒 Enregistrer une Vente")
+    with st.form("form_v", clear_on_submit=True):
+        d_v = st.date_input("Date", datetime.now())
+        type_v = st.selectbox("Prestation", ["Installation PES", "Installation Autre Jeu", "Mise à jour", "Vente Matériel"])
+        nom_jeu = st.text_input("Jeu / Article")
+        nom_client = st.text_input("Client")
+        prix_v = st.number_input("Montant Reçu (GNF)", min_value=0, step=5000)
         
-        # Le bouton ici a un nom unique pour éviter l'erreur
-        submit_v = st.form_submit_button("Enregistrer la Vente")
-        if submit_v:
-            new_v = {"Date": date_v, "Prestation": presta, "Jeu": jeu, "Client": client, "Revenu": prix}
-            df_ventes = pd.concat([df_ventes, pd.DataFrame([new_v])], ignore_index=True)
+        if st.form_submit_button("Valider la Vente"):
+
+> Mes fichiers:
+n_v = {"Date": d_v, "Prestation": type_v, "Jeu": nom_jeu, "Client": nom_client, "Revenu": prix_v}
+            df_ventes = pd.concat([df_ventes, pd.DataFrame([n_v])], ignore_index=True)
             df_ventes.to_csv('database_ventes.csv', index=False)
             st.success("Vente enregistrée !")
             st.rerun()
 
-# --- OPTION 3 : AJOUTER UNE DÉPENSE ---
+# --- 3. AJOUTER UNE DÉPENSE ---
 elif menu == "Ajouter une Dépense":
-    st.subheader("📉 Nouvelle Charge / Achat")
-    with st.form("form_depense"):
-        date_d = st.date_input("Date", datetime.now())
+    st.subheader("📉 Enregistrer une Dépense")
+    with st.form("form_d", clear_on_submit=True):
+        d_d = st.date_input("Date", datetime.now())
         type_d = st.selectbox("Catégorie", ["Loyer", "Électricité", "Achat Matériel", "Internet", "Perte/Vol", "Autre"])
-        desc = st.text_input("Détails de la dépense")
-        montant = st.number_input("Montant payé (GNF)", min_value=0, step=1000)
+        desc_d = st.text_input("Description détaillée")
+        prix_d = st.number_input("Montant Payé (GNF)", min_value=0, step=1000)
         
-        # Le bouton ici a un nom unique différent du premier
-        submit_d = st.form_submit_button("Enregistrer la Charge")
-        if submit_d:
-            new_d = {"Date": date_d, "Type": type_d, "Description": desc, "Montant": montant}
-            df_depenses = pd.concat([df_depenses, pd.DataFrame([new_d])], ignore_index=True)
+        if st.form_submit_button("Valider la Dépense"):
+            n_d = {"Date": d_d, "Type": type_d, "Description": desc_d, "Montant": prix_d}
+            df_depenses = pd.concat([df_depenses, pd.DataFrame([n_d])], ignore_index=True)
             df_depenses.to_csv('database_depenses.csv', index=False)
             st.success("Dépense enregistrée !")
             st.rerun()
-
-
-
