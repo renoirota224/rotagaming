@@ -1,128 +1,122 @@
+> Mes fichiers:
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from datetime import datetime
 import io
 import urllib.parse
 
-# --- 1. ARCHITECTURE ET STYLE (EXTRÊME) ---
-st.set_page_config(page_title="ROTAGAMING GALAXY", layout="wide")
+# --- CONFIGURATION DESIGN ---
+st.set_page_config(page_title="ROTAGAMING - BUSINESS PRO", layout="wide")
 
 st.markdown("""
     <style>
-    .stApp {
-        background: radial-gradient(circle, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-        color: #e94560;
-    }
-    [data-testid="stMetricValue"] { color: #00ff41 !important; font-family: 'Orbitron', sans-serif; text-shadow: 0 0 10px #00ff41; }
-    .stButton>button { border: 2px solid #e94560; background: transparent; color: white; border-radius: 15px; transition: 0.5s; }
-    .stButton>button:hover { background: #e94560; box-shadow: 0 0 20px #e94560; }
+    .stApp { background-color: #000000; color: #00ecff; }
+    [data-testid="stMetricValue"] { color: #00ecff !important; font-size: 35px !important; text-shadow: 0 0 10px #00ecff; }
+    .stButton>button { background: linear-gradient(90deg, #00ecff, #0046ff); color: white; border-radius: 8px; font-weight: bold; border: none; }
+    .sidebar .sidebar-content { background-color: #111; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. MOTEUR DE DONNÉES (AUTO-RÉPARABLE) ---
-def master_loader(file, cols):
+# --- CHARGEMENT DES DONNÉES ---
+def get_db(file, cols):
     try:
         df = pd.read_csv(file)
         for c in cols:
             if c not in df.columns: df[c] = 0
         return df
-    except: return pd.DataFrame(columns=cols)
+    except:
+        return pd.DataFrame(columns=cols)
 
-# Initialisation des 4 bases principales
-db_v = master_loader('rg_ventes.csv', ["ID", "Date", "Client", "Phone", "Service", "Jeu", "Montant", "Cout", "Statut", "User"])
-db_s = master_loader('rg_stock.csv', ["Item", "Qte", "Min_Seuil", "Prix_Vente", "Prix_Achat", "Rayon"])
-db_d = master_loader('rg_depenses.csv', ["Date", "Type", "Note", "Montant", "Payeur"])
-db_r = master_loader('rg_reparations.csv', ["Client", "Objet", "Panne", "Prix", "Statut", "Delai"])
+df_v = get_db('ventes_final.csv', ["Date", "Client", "Article", "Prix", "Source", "WhatsApp"])
+df_s = get_db('stock_manettes.csv', ["Modele", "Quantite", "Prix_Achat", "Prix_Vente"])
+df_d = get_db('depenses_pub.csv', ["Date", "Type", "Montant", "Note"])
 
-# --- 3. NAVIGATION MULTI-FONCTIONNELLE ---
-st.sidebar.title("💠 ROTAGAMING OS V.2.0")
-menu = st.sidebar.selectbox("COMMAND CENTER", [
-    "🛸 Dashboard 360", "💸 Terminal de Vente", "📦 Mega Stock", 
-    "🛠️ Labo Réparations", "📱 Marketing & WA", "📊 Analytics IA", 
-    "👥 Clients VIP", "📑 Rapports & PDF", "⚙️ Système"
+# --- MENU ---
+st.title("🎮 ROTAGAMING : Installation & Ventes")
+menu = st.sidebar.radio("GESTION", [
+    "📈 Performance & Pubs", 
+    "💸 Caisse (Ventes & Install)", 
+    "📦 Stock Manettes",
+    "📢 WhatsApp Marketing",
+    "📉 Frais & Pub Facebook"
 ])
 
-# --- 4. MODULE 1 : DASHBOARD 360 ---
-if menu == "🛸 Dashboard 360":
-    st.header("📊 Tableau de Bord Galactique")
+# --- 1. PERFORMANCE & PUBS ---
+if menu == "📈 Performance & Pubs":
+    st.header("Analyse de tes Publicités Facebook")
     
-    # Calculs complexes (Marge, Croissance)
-    ca = pd.to_numeric(db_v[db_v['Statut']=='Payé']['Montant']).sum()
-    dettes = pd.to_numeric(db_v[db_v['Statut']=='Dette']['Montant']).sum()
-    frais = pd.to_numeric(db_d['Montant']).sum()
-    marge = ca - pd.to_numeric(db_v['Cout']).sum() - frais
-    
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("CA ENCAISSÉ", f"{ca:,.0f} GNF", "+12% vs mois dernier")
-    c2.metric("DETTES ACTIVES", f"{dettes:,.0f} GNF", "-5%", delta_color="inverse")
-    c3.metric("MARGE NETTE", f"{marge:,.0f} GNF", "Rentable")
-    c4.metric("STOCK VALEUR", f"{pd.to_numeric(db_s['Prix_Achat']*db_s['Qte']).sum():,.0f} GNF")
+    rev = pd.to_numeric(df_v['Prix']).sum()
+    dep_pub = pd.to_numeric(df_d[df_d['Type'] == "Pub Facebook"]['Montant']).sum()
+    benef = rev - dep_pub - (pd.to_numeric(df_s['Prix_Achat']).sum() if not df_s.empty else 0)
 
-    # Graphique 3D des Ventes
-    if not db_v.empty:
-        fig = px.scatter_3d(db_v, x='Date', y='Montant', z='Service', color='Statut', size='Montant', 
-                             title="Visualisation 3D des Transactions", template="plotly_dark")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("CHIFFRE D'AFFAIRES", f"{rev:,.0f} GNF")
+    c2.metric("COÛT PUBS FB", f"{dep_pub:,.0f} GNF", delta_color="inverse")
+    c3.metric("BÉNÉFICE ESTIMÉ", f"{benef:,.0f} GNF")
+
+    if not df_v.empty:
+        st.subheader("D'où viennent tes clients ?")
+        fig = px.pie(df_v, names='Source', title="Origine des clients (Facebook vs Bouche à oreille)")
         st.plotly_chart(fig, use_container_width=True)
 
-# --- 5. MODULE 2 : TERMINAL DE VENTE ---
-elif menu == "💸 Terminal de Vente":
-    st.subheader("🛒 Nouvelle Transaction Avancée")
-    with st.form("pos_terminal"):
-        col1, col2, col3 = st.columns(3)
-        c_nom = col1.text_input("Client")
-        c_tel = col1.text_input("WhatsApp (Ex: 224...)")
-        serv = col2.selectbox("Prestation", ["PES 26", "FIFA 26", "GTA VI", "Patch", "Console Unlock", "Accessoire"])
-        jeu = col2.text_input("Détails Jeu")
-        prix = col3.number_input("Prix de Vente (GNF)", step=5000)
-        cout = col3.number_input("Coût d'acquisition (GNF)", step=1000)
-        stat = st.radio("Mode de Paiement", ["Payé", "Dette", "Acompte"], horizontal=True)
+# --- 2. CAISSE ---
+elif menu == "💸 Caisse (Ventes & Install)":
+    st.subheader("💰 Enregistrer une vente ou installation")
+    with st.form("vente_form"):
+        c1, c2 = st.columns(2)
+        cl = c1.text_input("Nom du Client")
+        wa = c1.text_input("Numéro WhatsApp")
+        src = c1.selectbox("Source du client", ["Pub Facebook", "Recommandation", "Passant"])
         
-        if st.form_submit_button("🚀 VALIDER & IMPRIMER"):
-            id_v = len(db_v) + 1
-            new_v = pd.DataFrame([{"ID":id_v, "Date":str(datetime.now().date()), "Client":c_nom, "Phone":c_tel, 
-                                   "Service":serv, "Jeu":jeu, "Montant":prix, "Cout":cout, "Statut":stat}])
-            db_v = pd.concat([db_v, new_v], ignore_index=True)
-            db_v.to_csv('rg_ventes.csv', index=False)
-            st.balloons()
-            st.success(f"Vente #{id_v} enregistrée !")
+        type_v = c2.selectbox("Type d'opération", ["Vente Manette", "Installation Jeux PC", "Pack Complet"])
+        art = c2.text_input("Détails (ex: Manette PS4 Noir / PES 17)")
+        prix = c2.number_input("Somme payée (GNF)", step=5000)
+        
+        if st.form_submit_button("VALIDER L'OPÉRATION"):
+            new_v = pd.DataFrame([{"Date": str(datetime.now().date()), "Client": cl, "Article": art, "Prix": prix, "Source": src, "WhatsApp": wa}])
+            df_v = pd.concat([df_v, new_v], ignore_index=True)
+            df_v.to_csv('ventes_final.csv', index=False)
+            st.success("Enregistré !")
 
-# --- 6. MODULE 3 : MEGA STOCK ---
-elif menu == "📦 Mega Stock":
-    st.subheader("📦 Inventaire & Magasin")
-    # Alerte Stock Bas
-    bas = db_s[db_s['Qte'] <= db_s['Min_Seuil']]
-    if not bas.empty:
-        st.error(f"⚠️ Alerte ! {len(bas)} articles sont presque épuisés !")
-        st.dataframe(bas)
-    
-    st.write("Détail du Stock")
-    st.data_editor(db_s, num_rows="dynamic", key="stock_editor")
-    if st.button("Enregistrer les modifications Stock"):
-        db_s.to_csv('rg_stock.csv', index=False)
+# --- 3. STOCK MANETTES ---
+elif menu == "📦 Stock Manettes":
+    st.subheader("🕹️ Inventaire des Manettes")
+    with st.expander("Ajouter un nouveau modèle"):
+        with st.form("stock_form"):
+            mod = st.text_input("Modèle (ex: PS4 Pro Dualshock)")
+            qte = st.number_input("Quantité reçue", min_value=1)
+            pa = st.number_input("Prix d'Achat (GNF)", step=1000)
+            pv = st.number_input("Prix de Vente prévu (GNF)", step=1000)
+            if st.form_submit_button("Ajouter au stock"):
+                new_s = pd.DataFrame([{"Modele": mod, "Quantite": qte, "Prix_Achat": pa, "Prix_Vente": pv}])
+                df_s = pd.concat([df_s, new_s], ignore_index=True)
+                df_s.to_csv('stock_manettes.csv', index=False)
+    st.dataframe(df_s, use_container_width=True)
 
-# --- 7. MODULE 5 : MARKETING WHATSAPP ---
-elif menu == "📱 Marketing & WA":
-    st.subheader("📢 Campagnes & CRM")
-    mode = st.radio("Action", ["Relance Dette", "Promo Nouveau Jeu", "Fidélisation"])
-    
-    if mode == "Relance Dette":
-        detteux = db_v[db_v['Statut'] == "Dette"]
-        if not detteux.empty:
-            select_c = st.selectbox("Client à relancer", detteux['Client'].unique())
-            tel = detteux[detteux['Client']==select_c]['Phone'].iloc[0]
-            montant = detteux[detteux['Client']==select_c]['Montant'].sum()
-            msg = f"Salut {select_c}, c'est ROTAGAMING. Petit rappel pour tes {montant} GNF. Passe nous voir ! 🎮"
-            if st.button("📲 Envoyer Relance"):
-                url = f"https://wa.me/{tel}?text={urllib.parse.quote(msg)}"
-                st.markdown(f'<a href="{url}" target="_blank">Cliquez ici pour WhatsApp</a>', unsafe_allow_html=True)
+# --- 4. WHATSAPP MARKETING ---
 
-# --- 8. MODULE SYSTÈME ---
-elif menu == "⚙️ Système":
-    st.subheader("🛠️ Maintenance du Système")
-    if st.button("🔥 RESET TOTAL (ATTENTION)"):
-        st.warning("Voulez-vous vraiment effacer TOUTES les données ?")
-        # Logique de reset...
+> Mes fichiers:
+elif menu == "📢 WhatsApp Marketing":
+    st.subheader("🔗 Générateur de lien pour Pub Facebook")
+    st.info("Utilise ce lien dans tes publicités Facebook pour que les clients t'envoient un message direct.")
     
-    st.download_button("📥 Backup Cloud (CSV)", db_v.to_csv(), "backup.csv", "text/csv")
+    pre_msg = st.text_input("Message automatique (ex: Bonjour ROTAGAMING, je veux installer PES)")
+    mon_num = "224622000000" # REMPLACE PAR TON NUMÉRO
+    
+    link = f"https://wa.me/{mon_num}?text={urllib.parse.quote(pre_msg)}"
+    st.code(link)
+    st.write("Copie ce lien dans le bouton 'Envoyer un message' de ta pub Facebook.")
+
+# --- 5. FRAIS & PUBS ---
+elif menu == "📉 Frais & Pub Facebook":
+    st.subheader("Dépenses Publicitaires & Charges")
+    with st.form("dep_form"):
+        tp = st.selectbox("Type", ["Pub Facebook", "Connexion Internet", "Électricité", "Loyer"])
+        mt = st.number_input("Montant (GNF)", step=1000)
+        nt = st.text_input("Note")
+        if st.form_submit_button("Enregistrer Frais"):
+            new_d = pd.DataFrame([{"Date": str(datetime.now().date()), "Type": tp, "Montant": mt, "Note": nt}])
+            df_d = pd.concat([df_d, new_d], ignore_index=True)
+            df_d.to_csv('depenses_pub.csv', index=False)
+            st.rerun()
