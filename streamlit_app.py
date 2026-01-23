@@ -1,4 +1,3 @@
-> Mes fichiers:
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -9,9 +8,7 @@ import urllib.parse
 # --- CONFIGURATION DESIGN ---
 st.set_page_config(page_title="ROTAGAMING - BUSINESS PRO", layout="wide")
 
-st.markdown("""
-    <style>
-    .stApp { background-color: #000000; color: #00ecff; }
+st.markdown("""<style>.stApp { background-color: #000000; color: #00ecff; }
     [data-testid="stMetricValue"] { color: #00ecff !important; font-size: 35px !important; text-shadow: 0 0 10px #00ecff; }
     .stButton>button { background: linear-gradient(90deg, #00ecff, #0046ff); color: white; border-radius: 8px; font-weight: bold; border: none; }
     .sidebar .sidebar-content { background-color: #111; }
@@ -39,8 +36,7 @@ menu = st.sidebar.radio("GESTION", [
     "💸 Caisse (Ventes & Install)", 
     "📦 Stock Manettes",
     "📢 WhatsApp Marketing",
-    "📉 Frais & Pub Facebook"
-])
+    "📉 Frais & Pub Facebook"])
 
 # --- 1. PERFORMANCE & PUBS ---
 if menu == "📈 Performance & Pubs":
@@ -96,7 +92,7 @@ elif menu == "📦 Stock Manettes":
 
 # --- 4. WHATSAPP MARKETING ---
 
-> Mes fichiers:
+
 elif menu == "📢 WhatsApp Marketing":
     st.subheader("🔗 Générateur de lien pour Pub Facebook")
     st.info("Utilise ce lien dans tes publicités Facebook pour que les clients t'envoient un message direct.")
@@ -120,3 +116,4 @@ elif menu == "📉 Frais & Pub Facebook":
             df_d = pd.concat([df_d, new_d], ignore_index=True)
             df_d.to_csv('depenses_pub.csv', index=False)
             st.rerun()
+
